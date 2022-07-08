@@ -4,8 +4,7 @@ using StatsPlots, CSV, DataFrames,Printf,Dierckx,ProgressMeter
 using AverageShiftedHistograms, DelimitedFiles
 ###########################
 #ToDo
-#Figure out how to deal with parameter boundaries
-#Include priors into MH MCMC?
+#Implement python emcee-like prior probability function to enforce parameter bounds
 ###########################
 cd()
 cd(".\\Documents\\GitHub\\6StateMCMC\\")
@@ -13,13 +12,12 @@ cd(".\\Documents\\GitHub\\6StateMCMC\\")
 include("main.jl")
 #Import error function
 include("LossFunction.jl")
-include("textalert.jl")
 
 function Model!(dy,y,par,t)
   #IFN, ODE 1 parameters
-  k11=0 #PR8, RIGI is assumed antagonized
-  n=3
-  RIGI=1
+  k11=0 #PR8, RIGI is assumed antagonized so k11=0. dNS1PR8, RIG-I is active so k11=1E5.
+  n=3 #Fixed Hill-like kinetic order for stability
+  RIGI=1 #Future use, could have production and decay of RIG-I protein within the cell
   k12=par[1]
   k13=par[2]
   k14=par[3]
@@ -49,7 +47,7 @@ function Model!(dy,y,par,t)
   dy[4]=y[6]*(k41*y[3]+k42*y[5])-0.3*y[4]
   dy[5]=k51*y[4]-0.3*y[5]
   dy[6]=-k61*y[6]*y[7]
-  dy[7]=(k71*y[6]*y[7])/(1+k72*(y[2]*7E-5))-k73*y[7]
+  dy[7]=(k71*y[6]*y[7])/(1+k72*(y[2]*7E-5))-k73*y[7] #Note unit correction for TCID50 and IFNe
 end
 
 #parNames = ["a","b","c"]
@@ -71,10 +69,10 @@ sol = solve(prob,alg)
 
 ## Generate data
 
-data = CSV.read("PR8.csv")
+data = CSV.read(".\\data\\PR8.csv")
 t = convert(Array,data[:Time])
-mock = CSV.read("Control.csv")
-titer = CSV.read("ViralTiters.csv")
+mock = CSV.read(".\\data\\Control.csv")
+titer = CSV.read(".\\data\\ViralTiters.csv")
 t_titer=convert(Array,titer[:Time])
 
 removeCol = [:Experiment :Time :IFN_env] #Strip time and IFN_env from data
@@ -105,19 +103,19 @@ parBounds[15]=Float64[0.0, 0.5]
 
 lossFunc = LossLog(t,t_titer,data,measured,mock,titer,shift)
 
-sampleNum = Int(1e4)
+sampleNum = Int(1e9)
 
 result = ptMCMC(prob,alg,priors,parBounds,lossFunc,sampleNum)
 bestPars= dropdims(permutedims(result[1], [1, 3, 2])[argmax(result[2],dims=1),:],dims=1)
 pNew=bestPars[1,:]
 
 
-CSV.write("chainparams.csv",DataFrame(result[1][:,:,1]))
+CSV.write(".\\results\\chainparams.csv",DataFrame(result[1][:,:,1]))
 
-open("acceptRatio.csv","a") do io #Write out acceptance ratios
+open(".\\results\\acceptRatio.csv","a") do io #Write out acceptance ratios
   writedlm(io,result[3][:,1])
 end
-open("energy.csv","a") do io #Write out loss function values
+open(".\\results\\energy.csv","a") do io #Write out loss function values
   writedlm(io,result[2][:,1])
 end
 
@@ -165,21 +163,17 @@ end
 
 datafitPlot = plot(ODEplots...,size=(1920,1080))
 
-savefig(datafitPlot,"DataFit.pdf")
+savefig(datafitPlot,".\\plots\\DataFit.pdf")
 
 #Posterior
 HistData = [plot(ash(result[1][1:end,i,1]),title="Par $i") for i=1:parNum]
 histPlot=plot(HistData...,legend=false,size=(1920,1080))
 
-savefig(histPlot,"histPlot.pdf")
+savefig(histPlot,".\\plots\\histPlot.pdf")
 
 logPostPlot = plot(result[2],legend =false,title="logPosterior")
-savefig(logPostPlot,"logPostPlot.pdf")
+savefig(logPostPlot,".\\plots\\logPostPlot.pdf")
 
 #acceptance Rate
 AcceptPlot = plot(result[3],legend =false,title="Acceptance Rate")
-savefig(AcceptPlot,"AcceptPlot.pdf")
-
-#number=("4")
-#message=("Julia has finished job")
-#TextAlert(number,message)
+savefig(AcceptPlot,".\\plots\\AcceptPlot.pdf")
