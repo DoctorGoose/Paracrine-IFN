@@ -121,10 +121,6 @@ The Paracrine-IFN codebase was developed by [DoctorGoose](https://github.com/Doc
 
 Contributions to Paracrine-IFN are welcome! If you encounter any issues or have suggestions for improvements, please [open an issue](https://github.com/DoctorGoose/Paracrine-IFN/issues) on GitHub.
 
-## Support
-
-For support or questions related to Paracrine-IFN, please [contact the author](mailto:doctorgoose@example.com).
-
 ## License
 
 Paracrine-IFN is licensed under the [MIT License](https://github.com/DoctorGoose/Paracrine-IFN/blob/main/LICENSE).
